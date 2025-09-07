@@ -1,0 +1,114 @@
+{
+    "tr": {
+      "nav": { "map": "Harita", "about": "Hakkında" },
+      "filtersTitle": "Filtreler",
+      "mapTitle": "Harita",
+      "flightsTitle": "Uçuşlar",
+      "airline": "Havayolu",
+      "all": "Tümü",
+      "altitude": "İrtifa",
+      "speed": "Hız",
+      "apply": "Uygula",
+      "altitudeHint": "ft cinsinden",
+      "speedHint": "kts cinsinden",
+      "settings": "Ayarlar",
+      "refresh": "Yenile (sn)",
+      "units": "Birimler",
+      "save": "Kaydet",
+      "about": {
+        "title": "AirScopeX Hakkında",
+        "desc": "Canlı uçuş takip aracı — OpenSky, AeroDataBox ve Leaflet ile."
+      },
+      "drawer": {
+        "airline": "Havayolu",
+        "flightIcao": "Uçuş ICAO",
+        "departure": "Kalkış",
+        "arrival": "Varış",
+        "depGate": "Kalkış Term./Kapı",
+        "arrGate": "Varış Term./Kapı",
+        "altitude": "İrtifa",
+        "speed": "Hız",
+        "icao24": "ICAO24",
+        "aircraft": "Uçak",
+        "noData": "Canlı uçuş verisi yok (özel/askeri olabilir)",
+        "track": "Takip et",
+        "center": "Merkeze al",
+        "copy": "Kopyala"
+      }
+    },
+    "en": {
+      "nav": { "map": "Map", "about": "About" },
+      "filtersTitle": "Filters",
+      "mapTitle": "Map",
+      "flightsTitle": "Flights",
+      "airline": "Airline",
+      "all": "All",
+      "altitude": "Altitude",
+      "speed": "Speed",
+      "apply": "Apply",
+      "altitudeHint": "in ft",
+      "speedHint": "in kts",
+      "settings": "Settings",
+      "refresh": "Refresh (s)",
+      "units": "Units",
+      "save": "Save",
+      "about": {
+        "title": "About AirScopeX",
+        "desc": "Live flight tracker — powered by OpenSky, AeroDataBox, and Leaflet."
+      },
+      "drawer": {
+        "airline": "Airline",
+        "flightIcao": "Flight ICAO",
+        "departure": "Departure",
+        "arrival": "Arrival",
+        "depGate": "DEP Term./Gate",
+        "arrGate": "ARR Term./Gate",
+        "altitude": "Altitude",
+        "speed": "Speed",
+        "icao24": "ICAO24",
+        "aircraft": "Aircraft",
+        "noData": "No live schedule data (may be private/military)",
+        "track": "Track",
+        "center": "Center",
+        "copy": "Copy"
+      }
+    },
+    "es": {
+      "nav": { "map": "Mapa", "about": "Acerca de" },
+      "filtersTitle": "Filtros",
+      "mapTitle": "Mapa",
+      "flightsTitle": "Vuelos",
+      "airline": "Aerolínea",
+      "all": "Todos",
+      "altitude": "Altitud",
+      "speed": "Velocidad",
+      "apply": "Aplicar",
+      "altitudeHint": "en ft",
+      "speedHint": "en kts",
+      "settings": "Ajustes",
+      "refresh": "Refrescar (s)",
+      "units": "Unidades",
+      "save": "Guardar",
+      "about": {
+        "title": "Acerca de AirScopeX",
+        "desc": "Rastreador de vuelos en vivo — con OpenSky, AeroDataBox y Leaflet."
+      },
+      "drawer": {
+        "airline": "Aerolínea",
+        "flightIcao": "Vuelo ICAO",
+        "departure": "Salida",
+        "arrival": "Llegada",
+        "depGate": "Terminal/Puerta SAL",
+        "arrGate": "Terminal/Puerta LLEG",
+        "altitude": "Altitud",
+        "speed": "Velocidad",
+        "icao24": "ICAO24",
+        "aircraft": "Aeronave",
+        "noData": "Sin datos en vivo (puede ser privado/militar)",
+        "track": "Seguir",
+        "center": "Centrar",
+        "copy": "Copiar"
+      }
+    }
+  }
+  
