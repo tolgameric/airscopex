@@ -407,19 +407,22 @@ async function fetchPlanes() {
           <small>ICAO24: ${icao24} • Airline: ${icaoCode || "N/A"}</small>
         </div>`;
 
-      let m = markers.get(icao24);
-      if (!m) {
-        m = L.marker([lat, lon], {
-          icon: planeIcon,
-          rotationAngle: Number.isFinite(track) ? track : 0,
-          rotationOrigin: "center center",
-        }).bindPopup(basePopup).addTo(map);
-        markers.set(icao24, m);
-      } else {
-        m.setLatLng([lat, lon]);
-        m.setPopupContent(basePopup);
-        if (Number.isFinite(track) && typeof m.setRotationAngle === "function") m.setRotationAngle(track);
-      }
+        let m = markers.get(icao24);
+        if (!m) {
+          m = L.marker([lat, lon], {
+            icon: planeIcon,
+            rotationAngle: Number.isFinite(track) ? track : 0,
+            rotationOrigin: "center center",
+          }).bindPopup(basePopup).addTo(map);
+          markers.set(icao24, m);
+        } else {
+          m.setLatLng([lat, lon]);
+          m.setPopupContent(basePopup);
+          if (Number.isFinite(track) && typeof m.setRotationAngle === "function") {
+            m.setRotationAngle(track);
+          }
+        }
+        
       seen.add(icao24);
 
       // List
