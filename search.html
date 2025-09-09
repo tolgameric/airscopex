@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AirScopeX — Arama</title>
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body id="search-page">
+  <nav class="navbar navbar-expand-lg navbar-dark site-header">
+    <div class="container-fluid">
+      <a class="navbar-brand fw-bold d-flex align-items-center gap-2" href="index.html">
+        <img src="logo.png" alt="AirScopeX Logo" class="brand-logo"/>
+        AirScopeX
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div id="nav" class="collapse navbar-collapse">
+        <ul class="navbar-nav ms-auto me-2">
+          <li class="nav-item"><a class="nav-link" href="index.html"><i class="bi bi-house"></i> Ana Sayfa</a></li>
+          <li class="nav-item"><a class="nav-link" href="map.html"><i class="bi bi-compass"></i> Harita</a></li>
+          <li class="nav-item"><a class="nav-link" href="about.html"><i class="bi bi-info-circle"></i> Hakkında</a></li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container py-3">
+    <div class="panel p-3 mb-3">
+      <form class="row g-2" action="search.html" method="get">
+        <div class="col-md-9">
+          <input type="text" class="form-control form-control-lg" name="q" id="q"
+                 placeholder="Uçuş No (örn. PGT1713) ya da Rota (örn. AMM-ESB)" value="">
+        </div>
+        <div class="col-md-3 d-grid">
+          <button class="btn btn-accent btn-lg" type="submit"><i class="bi bi-search"></i> Ara</button>
+        </div>
+      </form>
+      <div id="searchHelp" class="small text-muted mt-2">
+        • Uçuş no yazarsan direkt detay paneli açılır. • Rota yazarsan listeden bir uçuş seçersin.
+      </div>
+    </div>
+
+    <div id="searchAlert" class="alert alert-warning d-none"></div>
+
+    <div class="row">
+      <div class="col-lg-5">
+        <div class="panel p-3">
+          <h5 class="mb-3"><i class="bi bi-list-ul me-2"></i>Uçuşlar</h5>
+          <div id="routeResults" class="list-group small"></div>
+        </div>
+      </div>
+      <div class="col-lg-7">
+        <div class="panel p-0" id="detailPanel">
+          <div class="drawer-header">
+            <div class="d-flex align-items-center gap-2">
+              <i class="bi bi-airplane"></i>
+              <span id="detailTitle">Uçuş Detayı</span>
+              <span class="badge" id="detailStatus"></span>
+            </div>
+          </div>
+          <div class="drawer-body" id="detailBody">
+            <div class="p-3 text-muted">Arama yapın veya listeden bir uçuş seçin.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
