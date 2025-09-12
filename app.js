@@ -1,8 +1,16 @@
-// app.js — AirScopeX (75% Modals + Drawer Progress)
+/* app.js — AirScopeX (Aviation Edge Entegrasyonu) */
 
-/* ===== API KEYS (AeroDataBox) ===== */
-const ADB_KEY  = "37dbf3947emsh89f66726bee44c9p1dfd62jsn8b5d8cef2eeb";
-const ADB_HOST = "aerodatabox.p.rapidapi.com";
+/* ===== API KEYS ===== */
+const AVIATION_EDGE_API_KEY = "33d1ff-b345f6";
+const AVIATION_EDGE_BASE = "https://aviation-edge.com/v2/public";
+
+/* ===== OPTIONAL PROXY (CORS için Firebase Functions) =====
+ * Firebase'te rewrite yaptıysan bunu "/api/ae" bırak.
+ * Proxy yoksa null yap, doğrudan AE'ye istek atar.
+ */
+// Firebase proxy'si yerine genel bir CORS proxy'si kullanalım
+// Firebase proxy'si yerine genel bir CORS proxy'si kullanalım
+const AE_PROXY_BASE = "https://cors-anywhere.herokuapp.com/https://aviation-edge.com/v2/public";
 
 /* ===== Theme ===== */
 const themeToggle = document.getElementById("themeToggle");
@@ -68,47 +76,74 @@ function showToast(msg) {
 }
 
 /* ===== Map ===== */
-const map = L.map("map").setView([39.0, 35.0], 6);
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-  maxZoom: 18,
-  attribution: "© OpenStreetMap contributors"
-}).addTo(map);
-
+let map;
+if (document.getElementById("map")) {
+  map = L.map("map").setView([39.0, 35.0], 6);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 18,
+    attribution: "© OpenStreetMap contributors"
+  }).addTo(map);
+}
 const planeIcon = L.icon({ iconUrl: "plane.png", iconSize: [40, 40], iconAnchor: [20, 20], popupAnchor: [0, -20] });
 const markers = new Map();
 const flightListEl = document.getElementById("flightList");
 
-const m2ft  = m => (m == null ? null : Math.round(m * 3.28084));
-const ms2kt = v => (v == null ? null : Math.round(v * 1.94384));
+/* ===== Helpers ===== */
+const kmh2kt = v => (v == null ? null : Math.round(v * 0.539957));
+const m2ft = m => (m == null ? null : Math.round(m * 3.28084));
 const toLocale = n => (n == null ? "N/A" : n.toLocaleString());
+const ft2m  = ft => (ft == null || ft === "" ? null : Number(ft) / 3.28084);
+const kts2ms = kt => (kt == null || kt === "" ? null : Number(kt) / 1.94384);
 
-/* ===== OpenSky helpers ===== */
-function baseUrl(bounds) {
-  const p = new URLSearchParams({
-    lamin: bounds.getSouth().toFixed(2),
-    lomin: bounds.getWest().toFixed(2),
-    lamax: bounds.getNorth().toFixed(2),
-    lomax: bounds.getEast().toFixed(2),
-  });
-  return `https://opensky-network.org/api/states/all?${p.toString()}`;
+/* === Zaman alanı yakalayıcılar === */
+function pick(obj, keys){ if(!obj) return null; for(const k of keys){ if(obj[k]!=null && obj[k]!=="") return obj[k]; } return null; }
+function pickTime(obj, variants){
+  const v = pick(obj, variants);
+  return v ? fmtTimeLocalSafe(String(v)) : "—";
 }
-const PROXIES = [
-  "https://cors.isomorphic-git.org/",
-  "https://api.allorigins.win/raw?url=",
-  "https://thingproxy.freeboard.io/fetch/",
-];
-async function fetchJsonWithFallback(url) {
-  let err;
-  for (const px of PROXIES) {
-    const full = px.endsWith("url=") ? px + encodeURIComponent(url) : px + url;
-    try {
-      const res = await fetch(full, { cache: "no-store" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      try { return await res.json(); }
-      catch { return JSON.parse(await res.text()); }
-    } catch (e) { err = e; }
-  }
-  throw err || new Error("Failed to fetch");
+
+/* === Saat formatlayıcı (TR için) === */
+function fmtTimeLocalSafe(timeStr) {
+  if (!timeStr) return "—";
+  const isoLike = String(timeStr).trim().replace(" ", "T");
+  const endsZ = /Z$/.test(isoLike);
+  const isoTimeStr = endsZ ? isoLike : (isoLike + "Z");
+  const date = new Date(isoTimeStr);
+  if (isNaN(date.getTime())) return "—";
+  date.setHours(date.getHours() + 3); // UTC+3
+  const h = String(date.getUTCHours()).padStart(2, '0');
+  const m = String(date.getUTCMinutes()).padStart(2, '0');
+  return `${h}:${m}`;
+}
+function getDelay(scheduled, actual) {
+  if (!scheduled || !actual) return null;
+  const diff = new Date(actual) - new Date(scheduled);
+  const minutes = Math.round(diff / 60000);
+  if (minutes <= 5 && minutes >= -5) return { text: "On Time", class: "text-success" };
+  if (minutes > 5) return { text: `${minutes} min delay`, class: "text-danger" };
+  return { text: `${-minutes} min early`, class: "text-info" };
+}
+
+/** Haversine formülü ile iki koordinat arası mesafe (km) */
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371; // Dünya yarıçapı km cinsinden
+  const toRad = (x) => x * Math.PI / 180;
+
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c; // Mesafe km cinsinden
+}
+
+/** Tahmini uçuş süresi (dk) */
+function calculateFlightTime(distanceKm, speedKmh) {
+  if (!distanceKm || !speedKmh || speedKmh === 0) return null;
+  return Math.round((distanceKm / speedKmh) * 60); // Dakika
 }
 
 /* ===== Filters ===== */
@@ -118,7 +153,6 @@ const altMax = document.getElementById("altMax");
 const spdMin = document.getElementById("spdMin");
 const spdMax = document.getElementById("spdMax");
 const applyBtn = document.getElementById("applyBtn");
-
 const AIRLINES = [
   { code: "THY", name: "Turkish Airlines" }, { code: "PGT", name: "Pegasus Airlines" },
   { code: "AAL", name: "American Airlines" }, { code: "DAL", name: "Delta Air Lines" },
@@ -137,16 +171,12 @@ if (airlineSel && airlineSel.children.length <= 1) {
     opt.value = a.code; opt.textContent = a.name; airlineSel.appendChild(opt);
   });
 }
-
 const savedFilters = JSON.parse(localStorage.getItem("filters") || "{}");
 if (airlineSel) airlineSel.value = savedFilters.airline || "";
 if (altMin) altMin.value = savedFilters.altMin ?? "";
 if (altMax) altMax.value = savedFilters.altMax ?? "";
 if (spdMin) spdMin.value = savedFilters.spdMin ?? "";
 if (spdMax) spdMax.value = savedFilters.spdMax ?? "";
-
-const ft2m  = ft => (ft == null || ft === "" ? null : Number(ft) / 3.28084);
-const kts2ms = kt => (kt == null || kt === "" ? null : Number(kt) / 1.94384);
 function currentFilters() {
   return {
     airline: airlineSel?.value || "",
@@ -164,10 +194,11 @@ applyBtn?.addEventListener("click", () => {
     spdMin: spdMin?.value || "",
     spdMax: spdMax?.value || "",
   }));
-  fetchPlanes();
+  fetchFlights();
 });
 
-/* ===== Drawer ===== */
+
+/* ===== DRAWER (CONSOLIDATED LOGIC) ===== */
 const drawer = document.getElementById("flightDrawer");
 const drawerBody = document.getElementById("drawerBody");
 const drawerTitle = document.getElementById("drawerTitle");
@@ -176,510 +207,519 @@ const drawerBackdrop = document.getElementById("drawerBackdrop");
 const drawerClose = document.getElementById("drawerClose");
 
 function lockMap(lock) {
-  const f = lock ? "disable" : "enable";
-  map.dragging[f](); map.scrollWheelZoom[f](); map.doubleClickZoom[f]();
-  map.boxZoom[f](); map.keyboard[f]();
+  if (!map) return;
+  const action = lock ? "disable" : "enable";
+  map.dragging[action]();
+  map.scrollWheelZoom[action]();
+  map.doubleClickZoom[action]();
+  map.boxZoom[action]();
+  map.keyboard[action]();
 }
-function openDrawer() { drawer.classList.add("open"); drawerBackdrop.classList.add("open"); lockMap(true); }
-function closeDrawer() { drawer.classList.remove("open"); drawerBackdrop.classList.remove("open"); lockMap(false); }
-drawerBackdrop?.addEventListener("click", closeDrawer);
-drawerClose?.addEventListener("click", closeDrawer);
+
+function openDrawer() {
+  if (!drawer) return;
+  drawer.style.transform = ''; // Clear any inline styles from gestures
+  drawer.classList.add("is-open");
+  drawerBackdrop.classList.add("is-open");
+  lockMap(true);
+  document.body.style.overflow = 'hidden';
+}
+
+function closeDrawer() {
+  if (!drawer) return;
+  drawer.classList.remove("is-open");
+  drawerBackdrop.classList.remove("is-open");
+  drawer.style.transform = ''; // Ensure clean state
+  lockMap(false);
+  document.body.style.overflow = '';
+}
+
+// Initialize drawer events and gestures
+(function initDrawer() {
+  if (!drawer) return;
+  
+  drawerBackdrop?.addEventListener("click", closeDrawer);
+  drawerClose?.addEventListener("click", closeDrawer);
+
+  // Swipe-down to close gesture for mobile
+  let startY = null;
+  let currentY = null;
+  let isDragging = false;
+  const header = drawer.querySelector('.drawer-header') || drawer;
+
+  header.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 1) {
+      startY = e.touches[0].clientY;
+      isDragging = true;
+    }
+  }, { passive: true });
+
+  header.addEventListener('touchmove', (e) => {
+    if (!isDragging || !startY) return;
+    
+    currentY = e.touches[0].clientY;
+    const diffY = currentY - startY;
+    
+    // Only apply transform if dragging down and on mobile view
+    if (diffY > 0 && window.matchMedia('(max-width: 768px)').matches) {
+      drawer.style.transform = `translateY(${diffY}px)`;
+    }
+  }, { passive: true });
+
+  header.addEventListener('touchend', () => {
+    if (!isDragging) return;
+    
+    isDragging = false;
+    const diffY = currentY - startY;
+    
+    // If dragged more than a threshold, close it
+    if (diffY > 100) {
+      closeDrawer();
+    } else {
+      // Otherwise, snap back to the open position
+      drawer.style.transform = '';
+    }
+    
+    startY = null;
+    currentY = null;
+  });
+})();
+
 
 function statusBadgeClass(s="") {
-  if (/en.?route|active|airborne/i.test(s)) return "bg-success";
-  if (/landed|arrived/i.test(s)) return "bg-secondary";
-  if (/cancel|divert|delay/i.test(s)) return "bg-danger";
-  return "bg-warning";
+  const status = (s || "").toLowerCase();
+  if (status === 'en-route' || status === 'started') return "bg-success";
+  if (status === 'landed') return "bg-primary";
+  if (status.includes('cancel')) return "bg-danger";
+  if (status.includes('delay')) return "bg-warning";
+  if (status === 'scheduled') return "bg-info";
+  return "bg-secondary";
 }
 
-/* ===== Helpers ===== */
-function callsignToIcao(cs){ const s=(cs||"").trim().toUpperCase(); return s.length>=3?s.slice(0,3):""; }
-function callsignToFlightIcao(cs){ if(!cs) return null; return String(cs).toUpperCase().replace(/\s+/g,""); }
-const pad2 = n => (n<10 ? "0"+n : ""+n);
-function todayIsoDate(offsetDays=0){ const d=new Date(); d.setDate(d.getDate()+offsetDays); return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; }
-function extractDateString(x){ if(!x) return null; if(typeof x==="string") return x; if(typeof x==="number") return new Date(x).toISOString(); if(typeof x==="object"){ return x.local||x.utc||x.scheduled||x.scheduledTimeLocal||x.estimated||x.actual||null; } return null; }
-function fmtTimeLocalSafe(any){ const s=extractDateString(any); if(!s) return "—"; const d=new Date(s); if(Number.isNaN(d.getTime())) return String(s); return d.toLocaleString(undefined,{hour:"2-digit",minute:"2-digit",day:"2-digit",month:"2-digit"}); }
-function airportCodeLabel(a={}){ const code=a.iata||a.iataCode||a.icao||a.icaoCode; if(code) return String(code).toUpperCase(); if(a.airport&&(a.airport.iata||a.airport.icao)){ return (a.airport.iata||a.airport.icao).toUpperCase(); } if(a.name) return a.name; return "—"; }
-function normalizeFlight(item){
-  const dep=item.departure||item.depart||item.origin||{};
-  const arrv=item.arrival||item.arrive||item.destination||{};
-  return {
-    status:item.status||item.flightStatus||"",
-    airline:item.airline?.name||item.operator?.name||"",
-    number:item.number||item.flight?.number||item.numberIcao||"",
-    aircraft:item.aircraft||item.airplane||item.airframe||{},
-    dep:{ name:dep.airport?.name||dep.name||"", iata:dep.iata||dep.iataCode||dep.airport?.iata||"", icao:dep.icao||dep.icaoCode||dep.airport?.icao||"", sched:extractDateString(dep.scheduledTimeLocal||dep.scheduledTime||dep.scheduled), actual:extractDateString(dep.actualTimeLocal||dep.actualTime||dep.actual), est:extractDateString(dep.estimatedTimeLocal||dep.estimatedTime||dep.estimated), terminal:dep.terminal||"", gate:dep.gate||"", },
-    arr:{ name:arrv.airport?.name||arrv.name||"", iata:arrv.iata||arrv.iataCode||arrv.airport?.iata||"", icao:arrv.icao||arrv.icaoCode||arrv.airport?.icao||"", sched:extractDateString(arrv.scheduledTimeLocal||arrv.scheduledTime||arrv.scheduled), actual:extractDateString(arrv.actualTimeLocal||arrv.actualTime||arrv.actual), est:extractDateString(arrv.estimatedTimeLocal||arrv.estimatedTime||arrv.estimated), terminal:arrv.terminal||"", gate:arrv.gate||"", },
-    raw:item,
-  };
-}
-
-/* ===== AeroDataBox ===== */
-async function adbFetch(path, qs = {}) {
-  const url = new URL(`https://${ADB_HOST}${path}`);
-  Object.entries(qs).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== "") url.searchParams.set(k, v); });
-  const res = await fetch(url.toString(), { headers: { "X-RapidAPI-Key": ADB_KEY, "X-RapidAPI-Host": ADB_HOST }, cache: "no-store" });
-  if (!res.ok) { console.warn("AeroDataBox", res.status); return null; }
-  try { return await res.json(); } catch { return null; }
-}
-async function fetchAeroFlightByNumber(flightIcao) {
-  if (!ADB_KEY || !flightIcao) return null;
-  const dateList = [todayIsoDate(0), todayIsoDate(-1), todayIsoDate(1)];
-  const attempts = [
-    (id, d) => adbFetch(`/flights/number/${encodeURIComponent(id)}/${d}`, { withLeg: "true", dateLocalRole: "Departure" }),
-    (id, d) => adbFetch(`/flights/callsign/${encodeURIComponent(id)}/${d}`, { withLeg: "true", dateLocalRole: "Both" }),
-  ];
-  for (const fn of attempts) { for (const d of dateList) { const data = await fn(flightIcao, d); const arr = Array.isArray(data) ? data : (Array.isArray(data?.data) ? data.data : []); if (arr?.length) return normalizeFlight(arr[0]); } }
-  return null;
-}
-async function fetchAeroFlightByRegistration(icao24hex) {
-  try {
-    const ac = await adbFetch(`/aircraft/icao24/${encodeURIComponent(icao24hex)}`);
-    const reg = ac?.registration || ac?.reg || ac?.tail;
-    if (!reg) return null;
-    const dates = [todayIsoDate(0), todayIsoDate(-1), todayIsoDate(1)];
-    for (const d of dates) {
-      const data = await adbFetch(`/flights/registration/${encodeURIComponent(reg)}/${d}`, { withLeg: "true" });
-      const arr = Array.isArray(data) ? data : (Array.isArray(data?.data) ? data.data : []);
-      if (arr?.length) return normalizeFlight(arr[0]);
+/* ===== Aviation Edge Fetch (proxy destekli) ===== */
+async function aviationEdgeFetch(endpoint, params = {}) {
+  const buildURL = () => {
+    if (AE_PROXY_BASE) {
+      // PROXY KULLANIMI İÇİN GÜNCELLENDİ
+      const url = new URL(`${AE_PROXY_BASE}/${endpoint}`);
+      url.searchParams.set('key', AVIATION_EDGE_API_KEY);
+      Object.entries(params).forEach(([k, v]) => { if (v != null) url.searchParams.set(k, v); });
+      return url.toString();
+    } else {
+      // Orijinal (proxy'siz) kullanım
+      const url = new URL(`${AVIATION_EDGE_BASE}/${endpoint}`);
+      url.searchParams.set('key', AVIATION_EDGE_API_KEY);
+      Object.entries(params).forEach(([k, v]) => { if (v != null) url.searchParams.set(k, v); });
+      return url.toString();
     }
-  } catch {}
-  return null;
-}
-
-/* ===== Drawer Content ===== */
-function renderDrawerContent({ callsign, icao24, altOut, spdOut }, info) {
-  // yüzde hesap
-  const parseMs = (x) => {
-    const s = extractDateString(x);
-    if (!s) return null;
-    const d = new Date(s);
-    return isNaN(d) ? null : d.getTime();
   };
-  const depMs = parseMs(info.dep.actual || info.dep.est || info.dep.sched);
-  const arrMs = parseMs(info.arr.actual || info.arr.est || info.arr.sched);
-  let pct = null, pctText = "—";
-  if (depMs && arrMs && arrMs > depMs) {
-    const now = Date.now();
-    const p = Math.max(0, Math.min(1, (now - depMs) / (arrMs - depMs)));
-    pct = Math.round(p * 100);
-    pctText = pct + "%";
+  const urlStr = buildURL();
+  try {
+    const res = await fetch(urlStr, { cache: "no-store" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    return data;
+  } catch(e) {
+    console.error("Aviation Edge Fetch Error:", e);
+    throw new Error("Aviation Edge fetch failed");
   }
-
-  // rota bilgileri
-  const depCode = airportCodeLabel(info.dep);
-  const arrCode = airportCodeLabel(info.arr);
-  const depTime = fmtTimeLocalSafe(info.dep.actual || info.dep.est || info.dep.sched);
-  const arrTime = fmtTimeLocalSafe(info.arr.actual || info.arr.est || info.arr.sched);
-
-  drawerTitle.textContent = (callsign || info.number || "Flight").toString().replace(/\s+/g,"");
-  drawerStatus.className = `badge ms-2 ${statusBadgeClass(info.status)}`;
-  drawerStatus.textContent = info.status || "";
-
-  // uçak görseli (varsa)
-  const acModel = info.aircraft?.model || info.aircraft?.icao || "";
-  const rawImg = info.aircraft?.image || info.aircraft?.images?.front || info.aircraft?.images?.side || null;
-  const imgUrl = rawImg?.url || rawImg?.previewUrl;
-  const imgWeb = rawImg?.webUrl || imgUrl;
-  const imgHtml = imgUrl ? `
-    <div class="drawer-section">
-      <a href="${imgWeb}" target="_blank" rel="noreferrer">
-        <img src="${imgUrl}" alt="${acModel || 'aircraft'}"
-             style="width:100%;max-height:220px;object-fit:cover;border-radius:12px;border:1px solid #20304a;"/>
-      </a>
-      ${acModel ? `<div style="margin-top:6px;font-weight:700">${acModel}</div>` : ``}
-    </div>` : ``;
-
-  // HTML
-  drawerBody.innerHTML = `
-    <div class="route-line">
-      <span class="code" title="${info.dep.name || ""}">${depCode}</span>
-      <i class="bi bi-arrow-right"></i>
-      <span class="code" title="${info.arr.name || ""}">${arrCode}</span>
-    </div>
-
-    <div class="route-progress">
-      <div class="rp-meta">
-        <span>${depTime}</span>
-        <span class="pct">${pctText}</span>
-        <span>${arrTime}</span>
-      </div>
-      <div class="rp-bar">
-        <div class="fill" style="width:${pct==null?0:pct}%;"></div>
-      </div>
-    </div>
-
-    <div class="drawer-meta drawer-section">
-      <div class="k">Airline</div><div class="v">${info.airline || "—"}</div>
-      <div class="k">Flight</div><div class="v">${(callsign||"").replace(/\s+/g,"") || info.number || "—"}</div>
-      <div class="k">Departure</div><div class="v">${depTime}</div>
-      <div class="k">Arrival</div><div class="v">${arrTime}</div>
-      <div class="k">DEP Term./Gate</div><div class="v">${info.dep.terminal || "—"} ${info.dep.gate ? ("• Gate " + info.dep.gate) : ""}</div>
-      <div class="k">ARR Term./Gate</div><div class="v">${info.arr.terminal || "—"} ${info.arr.gate ? ("• Gate " + info.arr.gate) : ""}</div>
-    </div>
-
-    <div class="drawer-section stat-cards">
-      <div class="stat-card"><div class="k">Altitude</div><div class="v">${altOut}</div></div>
-      <div class="stat-card"><div class="k">Speed</div><div class="v">${spdOut}</div></div>
-      <div class="stat-card"><div class="k">ICAO24</div><div class="v">${icao24}</div></div>
-    </div>
-
-    ${imgHtml}
-  `;
 }
 
 
-/* ===== Flights polling ===== */
-async function fetchPlanes() {
+/* ===== Flights In Bounds (repo uyumlu: merkez+yarıçap) ===== */
+async function aviationEdgeGetFlightsInBounds(bounds) {
   try {
-    const url = baseUrl(map.getBounds());
-    if (flightListEl && !flightListEl.dataset.loaded) {
-      flightListEl.innerHTML = `
-        <div class="list-group-item skeleton"></div>
-        <div class="list-group-item skeleton"></div>
-        <div class="list-group-item skeleton"></div>`;
-    }
+    const ne = bounds.getNorthEast();
+    const center = bounds.getCenter();
+    const R = 6371; // km
+    const toRad = d => d * Math.PI / 180;
+    const dLat = toRad(ne.lat - center.lat);
+    const dLng = toRad(ne.lng - center.lng);
+    const a = Math.sin(dLat/2)**2 + Math.cos(toRad(center.lat))*Math.cos(toRad(ne.lat))*Math.sin(dLng/2)**2;
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const radiusKm = Math.max(20, Math.min(300, Math.round(R * c)));
 
-    const data = await fetchJsonWithFallback(url);
+    const data = await aviationEdgeFetch('flights', {
+      lat: center.lat.toFixed(5),
+      lng: center.lng.toFixed(5),
+      distance: radiusKm
+    });
+    if (!Array.isArray(data)) return [];
+    console.log(`[AviationEdge] InBounds: ${data.length} (r=${radiusKm}km)`);
+    return data;
+  } catch(e) { return []; }
+}
+
+/* ===== Uçuşları Çekme ve Haritayı Güncelleme ===== */
+async function fetchFlights() {
+  if (!map) return;
+  const bounds = map.getBounds();
+  try {
+    if (flightListEl && !flightListEl.dataset.loaded) {
+      flightListEl.innerHTML = `<div class="list-group-item skeleton"></div><div class="list-group-item skeleton"></div><div class="list-group-item skeleton"></div>`;
+    }
+    const liveFlightData = await aviationEdgeGetFlightsInBounds(bounds);
     const F = currentFilters();
     const seen = new Set();
     const items = [];
-
-    (data.states || []).forEach((s) => {
-      const icao24 = s[0];
-      const callsign = (s[1] || "").trim();
-      const origin = s[2] || "";
-      const lon = s[5], lat = s[6];
-      const vel = s[9];
-      const track = s[10];
-      const alt = s[13];
+    liveFlightData.forEach((f) => {
+      const icao24 = f.aircraft?.icao24 || f.flight?.icaoNumber;
+      if (!icao24) return;
+      const callsign = (f.flight?.icaoNumber || f.flight?.iataNumber || "N/A").trim();
+      const origin = f.departure?.iataCode || "N/A";
+      const lon = f.geography?.longitude;
+      const lat = f.geography?.latitude;
+      const vel_kmh = f.speed?.horizontal;
+      const track = f.geography?.direction;
+      const alt_m = f.geography?.altitude;
       if (lat == null || lon == null) return;
-
-      const icaoCode = callsignToIcao(callsign);
-      if (F.airline && icaoCode !== F.airline) return;
-      if (F.altMin != null && alt != null && alt < F.altMin) return;
-      if (F.altMax != null && alt != null && alt > F.altMax) return;
-      if (F.spdMin != null && vel != null && vel < F.spdMin) return;
-      if (F.spdMax != null && vel != null && vel > F.spdMax) return;
-
-      const altOut = (UNITS === "imperial") ? (alt != null ? `${toLocale(m2ft(alt))} ft` : "N/A")
-                                            : (alt != null ? `${toLocale(Math.round(alt))} m` : "N/A");
-      const spdOut = (UNITS === "imperial") ? (vel != null ? `${toLocale(ms2kt(vel))} kts` : "N/A")
-                                            : (vel != null ? `${toLocale(Math.round(vel))} m/s` : "N/A");
-
-      const basePopup = `
-        <div>
-          <strong>${callsign || "N/A"}</strong> <span class="badge bg-info">${origin}</span><br/>
-          <span>${altOut}</span><br/>
-          <span>${spdOut}</span><br/>
-          <small>ICAO24: ${icao24} • Airline: ${icaoCode || "N/A"}</small>
-        </div>`;
-
+      const airlineIcao = f.airline?.icaoCode || callsign.substring(0, 3);
+      if (F.airline && airlineIcao !== F.airline) return;
+      if (F.altMin != null && alt_m != null && alt_m < F.altMin) return;
+      if (F.altMax != null && alt_m != null && alt_m > F.altMax) return;
+      if (F.spdMin != null && vel_kmh != null && (vel_kmh / 3.6) < F.spdMin) return;
+      if (F.spdMax != null && vel_kmh != null && (vel_kmh / 3.6) > F.spdMax) return;
+      const altOut = (UNITS === "imperial") ? (alt_m != null ? `${toLocale(m2ft(alt_m))} ft` : "N/A") : (alt_m != null ? `${toLocale(Math.round(alt_m))} m` : "N/A");
+      const spdOut = (UNITS === "imperial") ? (vel_kmh != null ? `${toLocale(kmh2kt(vel_kmh))} kts` : "N/A") : (vel_kmh != null ? `${toLocale(Math.round(vel_kmh))} km/h` : "N/A");
+      const basePopup = `<div><strong>${callsign}</strong> <span class="badge bg-info">${origin}</span><br/><span>${altOut}</span><br/><span>${spdOut}</span><br/><small>ICAO24: ${icao24}</small></div>`;
       let m = markers.get(icao24);
       if (!m) {
-        m = L.marker([lat, lon], {
-          icon: planeIcon,
-          rotationAngle: Number.isFinite(track) ? track : 0,
-          rotationOrigin: "center center",
-        }).bindPopup(basePopup).addTo(map);
+        m = L.marker([lat, lon], { icon: planeIcon, rotationAngle: Number.isFinite(track) ? track : 0, rotationOrigin: "center center", }).bindPopup(basePopup).addTo(map);
         markers.set(icao24, m);
       } else {
         m.setLatLng([lat, lon]);
         m.setPopupContent(basePopup);
         if (Number.isFinite(track) && typeof m.setRotationAngle === "function") m.setRotationAngle(track);
       }
-
       seen.add(icao24);
-      items.push({ callsign: callsign || "N/A", origin, altOut, spdOut });
-
+      items.push({ callsign: callsign, origin, altOut, spdOut, icao24 });
       m.off("click");
-      m.on("click", async () => {
-        const flightIcao = callsignToFlightIcao(callsign);
-        openDrawer();
-
-        drawerTitle.textContent = callsign || flightIcao || "Flight";
-        drawerStatus.className = "badge ms-2";
-        drawerStatus.textContent = "";
-        drawerBody.innerHTML = `<div class="drawer-skeleton"><div class="sk-line"></div><div class="sk-line"></div><div class="sk-line"></div><div class="sk-line"></div></div>`;
-
-        let info = flightIcao ? await fetchAeroFlightByNumber(flightIcao) : null;
-        if (!info) info = await fetchAeroFlightByRegistration(icao24);
-
-        if (!info) {
-          drawerBody.innerHTML = `
-            <div class="route-line">
-              <span class="code">N/A</span><i class="bi bi-arrow-right"></i><span class="code">N/A</span>
-            </div>
-            <div class="drawer-section text-warning">No live schedule data (Private/GA veya askeri olabilir)</div>
-            <div class="drawer-section stat-cards">
-              <div class="stat-card"><div class="k">Altitude</div><div class="v">${altOut}</div></div>
-              <div class="stat-card"><div class="k">Speed</div><div class="v">${spdOut}</div></div>
-              <div class="stat-card"><div class="k">ICAO24</div><div class="v">${icao24}</div></div>
-            </div>`;
-          return;
-        }
-        renderDrawerContent({ callsign, icao24, altOut, spdOut }, info);
-      });
+      m.on("click", () => { window.openDrawerForFlight(f); });
     });
-
     for (const [key, marker] of markers.entries()) {
       if (!seen.has(key)) { marker.remove(); markers.delete(key); }
     }
-
     if (flightListEl) {
       flightListEl.dataset.loaded = "1";
-      flightListEl.innerHTML = items.length
-        ? items.map(it => `
-            <div class="list-group-item">
-              <div class="d-flex justify-content-between">
-                <div>
-                  <strong>${it.callsign}</strong>
-                  <span class="badge bg-info">${it.origin}</span>
-                </div>
-                <div class="text-end">
-                  ${it.altOut}<br/>${it.spdOut}
-                </div>
-              </div>
-            </div>`).join("")
-        : `<div class="list-group-item">No flights</div>`;
+      flightListEl.innerHTML = items.length ? items.map(it => `<div class="list-group-item list-group-item-action" onclick="(() => { const m = markers.get('${it.icao24}'); if (m) { map.flyTo(m.getLatLng()); m.fire('click'); } })()"><div class="d-flex justify-content-between"><div><strong>${it.callsign}</strong><span class="badge bg-info">${it.origin}</span></div><div class="text-end small">${it.altOut}<br/>${it.spdOut}</div></div></div>`).join("") : `<div class="list-group-item">Bu alanda uçuş bulunamadı.</div>`;
     }
   } catch (e) {
     console.error(e);
-    showToast(`Error: ${e.message}`);
-    if (flightListEl) {
-      flightListEl.innerHTML = `<div class="list-group-item bg-danger text-light">Error: ${e.message}</div>`;
-    }
+    showToast(`Hata: ${e.message}`);
+    if (flightListEl) { flightListEl.innerHTML = `<div class="list-group-item bg-danger text-light">Hata: ${e.message}</div>`; }
   }
 }
-fetchPlanes();
-setInterval(fetchPlanes, REFRESH_MS);
 
-/* ========= Generic Centered Modal ========= */
-function createCenteredModal({ title, bodyBuilder, credit }) {
-  const backdrop = document.createElement("div"); backdrop.className = "wxm-backdrop";
-  const modal    = document.createElement("div"); modal.className = "wxm-modal";
-  const content  = document.createElement("div"); content.className = "wxm-content";
-  const head     = document.createElement("div"); head.className = "wxm-head";
-  const body     = document.createElement("div"); body.className = "wxm-body";
+/* ===============================================================
+ * SAAT ZENGİNLEŞTİRME — Airport Schedules/Timetable
+ * =============================================================== */
 
-  head.innerHTML = `
-    <div class="wxm-title">${title || ""}</div>
-    <div class="wxm-actions">
-      ${credit ? `<span class="wxm-credit">${credit}</span>` : ""}
-      <button class="wxm-close" title="Close">✕</button>
-    </div>`;
+/** AE schedule/timetable'larda alan isimleri değişken -> olası key'ler */
+const TIME_KEYS = {
+  depSched: ["scheduledTime", "scheduledTimeLocal", "departureScheduledTime", "departureTime", "timeScheduled"],
+  depAct:   ["actualTime", "actual", "off", "takeoffTime", "departureActualTime", "realTime"],
+  arrSched: ["scheduledTime", "scheduledTimeLocal", "arrivalScheduledTime", "arrivalTime"],
+  arrEst:   ["estimatedTime", "estimated", "eta", "estimatedGateTime", "estimatedRunwayTime"],
+  arrAct:   ["actualTime", "actual", "on", "landingTime", "arrivalActualTime"]
+};
 
-  content.appendChild(head); content.appendChild(body);
-  modal.appendChild(content);
-  document.body.appendChild(backdrop); document.body.appendChild(modal);
+/** Schedules listesinde uçuşu bulmak için flight numarasından normalize matcher */
+function matchByFlightNumber(row, wanted) {
+  if (!wanted) return false;
+  const w = String(wanted).replace(/\s+/g,'').toUpperCase(); // PGT1234
+  const cands = [
+    row.flightNumber, row.flight?.number, row.flight?.iataNumber, row.flight?.icaoNumber,
+    row.number, row.iataNumber, row.icaoNumber
+  ].filter(Boolean).map(x=>String(x).replace(/\s+/g,'').toUpperCase());
+  return cands.includes(w);
+}
 
-  const close = () => {
-    backdrop.classList.remove("open"); modal.classList.remove("open");
-    setTimeout(()=>{ backdrop.remove(); modal.remove(); }, 220);
+/** Airport schedules/timetable'dan departure/arrival saatlerini çek */
+async function fetchAirportTimes(depIata, arrIata, flightNumLike){
+  // 1) departure tarafı
+  let depRow = null, arrRow = null;
+
+  // schedules?iataCode=XXX&type=departure/arrival
+  try {
+    if (depIata) {
+      const depList = await aviationEdgeFetch("schedules", { iataCode: depIata, type: "departure" });
+      if (Array.isArray(depList) && depList.length) {
+        depRow = depList.find(r => matchByFlightNumber(r, flightNumLike)) || null;
+      }
+    }
+  } catch {}
+
+  try {
+    if (arrIata) {
+      const arrList = await aviationEdgeFetch("schedules", { iataCode: arrIata, type: "arrival" });
+      if (Array.isArray(arrList) && arrList.length) {
+        arrRow = arrList.find(r => matchByFlightNumber(r, flightNumLike)) || null;
+      }
+    }
+  } catch {}
+
+  // 2) fallback: timetable endpoint isimli olan
+  try {
+    if (!depRow && depIata) {
+      const depList2 = await aviationEdgeFetch("timetable", { iataCode: depIata, type: "departure" });
+      if (Array.isArray(depList2) && depList2.length) {
+        depRow = depList2.find(r => matchByFlightNumber(r, flightNumLike)) || null;
+      }
+      //console.log("DEP_LIST2", depList2)
+    }
+  } catch {}
+  try {
+    if (!arrRow && arrIata) {
+      const arrList2 = await aviationEdgeFetch("timetable", { iataCode: arrIata, type: "arrival" });
+      if (Array.isArray(arrList2) && arrList2.length) {
+        arrRow = arrList2.find(r => matchByFlightNumber(r, flightNumLike)) || null;
+      }
+      //console.log("ARR_LIST2", arrList2)
+    }
+  } catch {}
+
+  // 3) saatleri ayıkla
+  const depSchedRaw = depRow && pick(depRow, TIME_KEYS.depSched);
+  const depActRaw   = depRow && pick(depRow, TIME_KEYS.depAct);
+  const arrSchedRaw = arrRow && pick(arrRow, TIME_KEYS.arrSched);
+  const arrEstRaw   = arrRow && pick(arrRow, TIME_KEYS.arrEst);
+  const arrActRaw   = arrRow && pick(arrRow, TIME_KEYS.arrAct);
+
+  // UTC offset bilgisi çek
+  const depTimezone = depRow?.departure?.timezone || depRow?.timezone || null;
+  const arrTimezone = arrRow?.arrival?.timezone || arrRow?.timezone || null;
+  const depUtcOffset = airports.find(a => a.iata === depIata)?.utc || null;
+  const arrUtcOffset = airports.find(a => a.iata === arrIata)?.utc || null;
+
+  return {
+    dep: {
+      scheduled: depSchedRaw || null,
+      actual: depActRaw || null,
+      timezone: depTimezone,
+      utcOffset: depUtcOffset
+    },
+    arr: {
+      scheduled: arrSchedRaw || null,
+      estimated: arrEstRaw || null,
+      actual: arrActRaw || null,
+      timezone: arrTimezone,
+      utcOffset: arrUtcOffset
+    }
   };
-  backdrop.addEventListener("click", close);
-  modal.querySelector(".wxm-close")?.addEventListener("click", close);
-
-  bodyBuilder?.(body, close);
-
-  requestAnimationFrame(()=>{ backdrop.classList.add("open"); modal.classList.add("open"); content.classList.add("open"); });
-  return { close, bodyEl: body, modalEl: modal };
 }
 
-/* ===== RainViewer Modal ===== */
-function openWxModal() {
-  createCenteredModal({
-    title: "RainViewer Live Radar",
-    credit: "Data & map © RainViewer",
-    bodyBuilder: (body)=>{
-      const iframe = document.createElement("iframe");
-      iframe.className = "wxm-iframe"; iframe.title = "RainViewer Live Radar";
-      const c = map.getCenter(); const z = map.getZoom();
-      const loc = `${c.lat.toFixed(4)},${c.lng.toFixed(4)},${Math.max(3, Math.min(12, z))}`;
-      iframe.src = `https://www.rainviewer.com/map.html?loc=${encodeURIComponent(loc)}`;
-      body.appendChild(iframe);
-      iframe.addEventListener("error", ()=>{
-        body.innerHTML = `<div class="wxm-fallback">
-          <div class="mb-2">RainViewer haritası ekrana gömülemiyor.</div>
-          <a class="btn btn-accent" href="https://www.rainviewer.com/map.html?loc=${encodeURIComponent(loc)}" target="_blank" rel="noreferrer">Yeni sekmede aç</a>
-        </div>`;
-      });
+/** Çekilen saatleri flightData içine _schedule alanı olarak bas */
+function mergeScheduleIntoFlight(flightData, sched){
+  if (!sched) return flightData;
+  const copy = JSON.parse(JSON.stringify(flightData || {}));
+  copy._schedule = {
+    departure: {
+      scheduledTime: sched.dep?.scheduled || null,
+      actualTime:    sched.dep?.actual    || null,
+      timezone:      sched.dep?.timezone  || null,
+      utcOffset:     sched.dep?.utcOffset || null
+    },
+    arrival: {
+      scheduledTime: sched.arr?.scheduled || null,
+      estimatedTime: sched.arr?.estimated || null,
+      actualTime:    sched.arr?.actual    || null,
+      timezone:      sched.arr?.timezone  || null,
+      utcOffset:     sched.arr?.utcOffset || null
     }
-  });
+  };
+  return copy;
 }
 
-/* ===== Normal Map Modal ===== */
-function openFsMapModal() {
-  createCenteredModal({
-    title: "Full Screen Map",
-    bodyBuilder: (body)=>{
-      const mapDiv = document.createElement("div");
-      mapDiv.className = "map-canvas"; mapDiv.style.cssText = "height:100%;width:100%";
-      body.appendChild(mapDiv);
+/* ===============================================================
+ * DRAWER CONTENT
+ * =============================================================== */
 
-      const modalMap = L.map(mapDiv).setView(map.getCenter(), map.getZoom());
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 18, attribution: "© OpenStreetMap contributors"
-      }).addTo(modalMap);
-
-      markers.forEach(m => {
-        L.marker(m.getLatLng(), { icon: planeIcon }).addTo(modalMap);
-      });
-    }
-  });
+/** Airport (airports.js'den) detayını getiren yardımcı fonksiyon */
+function getAirportDetails(iataCode) {
+  if (!iataCode) return null;
+  return airports.find(a => a.iata === iataCode);
 }
 
+// app.js içindeki bu fonksiyonu güncelleyin
 
-/* ===== SEARCH PAGE LOGIC ===== */
-(function(){
-  if (document.body.id !== 'search-page') return;
+// app.js içindeki renderDrawerContent fonksiyonunu bununla değiştirin
 
-  const params = new URLSearchParams(window.location.search);
-  const qRaw = (params.get('q') || '').trim();
-  const q = qRaw.toUpperCase();
-  const input = document.getElementById('q');
-  if (input && qRaw) input.value = qRaw;
+function renderDrawerContent(flightData) {
+  const flight    = flightData.flight    || {};
+  const departure = flightData.departure || {};
+  const arrival   = flightData.arrival   || {};
+  const airline   = flightData.airline   || {};
+  const aircraft  = flightData.aircraft  || {};
+  const geography = flightData.geography || {};
+  const speed     = flightData.speed     || {};
+  const statusRaw = flightData.status    || "Unknown";
 
-  const alertBox = document.getElementById('searchAlert');
-  const resultsEl = document.getElementById('routeResults');
-  const detailTitle = document.getElementById('detailTitle');
-  const detailStatus = document.getElementById('detailStatus');
-  const detailBody = document.getElementById('detailBody');
+  const flightNum = (flight.iataNumber || flight.icaoNumber || "—").toUpperCase();
+  const depCode   = departure.iataCode || departure.icaoCode || "???";
+  const arrCode   = arrival.iataCode   || arrival.icaoCode   || "???";
 
-  function showAlert(msg, type='warning'){
-    alertBox.className = 'alert alert-' + type;
-    alertBox.textContent = msg;
-    alertBox.classList.remove('d-none');
-  }
-  function clearAlert(){ alertBox.classList.add('d-none'); }
+  const depAirport = airports.find(a => a.iata === depCode);
+  const arrAirport = airports.find(a => a.iata === arrCode);
 
-  function showDetail(info, ctx={}){
-    if (!info){ showAlert('Bu uçuş için detay bulunamadı.', 'warning'); return; }
-    clearAlert();
-    const depCode = airportCodeLabel(info.dep);
-    const arrCode = airportCodeLabel(info.arr);
-    const depTime = fmtTimeLocalSafe(info.dep.actual || info.dep.est || info.dep.sched);
-    const arrTime = fmtTimeLocalSafe(info.arr.actual || info.arr.est || info.arr.sched);
+  const depName = depAirport?.name || departure.airport || "Unknown Airport";
+  const arrName = arrAirport?.name || arrival.airport || "Unknown Airport";
+  
+  const depTimezoneName = depAirport ? `UTC${depAirport.utc >= 0 ? '+' : ''}${depAirport.utc}` : 'N/A';
+  const arrTimezoneName = arrAirport ? `UTC${arrAirport.utc >= 0 ? '+' : ''}${arrAirport.utc}` : 'N/A';
 
-    detailTitle.textContent = (ctx.callsign || info.number || 'Flight').toString().replace(/\s+/g,'');
-    detailStatus.className = 'badge ms-2 ' + (statusBadgeClass(info.status));
-    detailStatus.textContent = info.status || '';
+  drawerTitle.textContent = flightNum;
+  drawerStatus.textContent = statusRaw.charAt(0).toUpperCase() + statusRaw.slice(1);
+  drawerStatus.className = `badge ms-2 ${statusBadgeClass(statusRaw)}`;
 
-    const acModel = info.aircraft?.model || info.aircraft?.icao || '';
-    const rawImg = info.aircraft?.image || info.aircraft?.images?.front || info.aircraft?.images?.side || null;
-    const imgUrl = rawImg?.url || rawImg?.previewUrl;
-    const imgWeb = rawImg?.webUrl || imgUrl;
-    const imgHtml = imgUrl ? `
-      <div class="drawer-section">
-        <a href="${imgWeb}" target="_blank" rel="noreferrer">
-          <img src="${imgUrl}" alt="${acModel || 'aircraft'}"
-               style="width:100%;max-height:220px;object-fit:cover;border-radius:12px;border:1px solid #20304a;"/>
-        </a>
-        ${acModel ? `<div style="margin-top:6px;font-weight:700">${acModel}</div>` : ``}
-      </div>` : ``;
+  const altOut = (UNITS === "imperial")
+    ? (geography.altitude != null ? `${toLocale(m2ft(geography.altitude))} ft` : "—")
+    : (geography.altitude != null ? `${toLocale(Math.round(geography.altitude))} m` : "—");
+  const spdOut = (UNITS === "imperial")
+    ? (speed.horizontal != null ? `${toLocale(kmh2kt(speed.horizontal))} kts` : "—")
+    : (speed.horizontal != null ? `${toLocale(Math.round(speed.horizontal))} km/h` : "—");
+  const heading = geography.direction != null ? `${Math.round(geography.direction)}°` : "—";
+  
+  let distanceKm = null;
+  let distanceCoveredKm = null;
+  let progressPercentage = 0;
 
-    detailBody.innerHTML = `
-      <div class="route-line">
-        <span class="code" title="${info.dep.name || ""}">${depCode}</span>
-        <i class="bi bi-arrow-right"></i>
-        <span class="code" title="${info.arr.name || ""}">${arrCode}</span>
-      </div>
-
-      <div class="drawer-meta drawer-section">
-        <div class="k">Airline</div><div class="v">${info.airline || "—"}</div>
-        <div class="k">Flight</div><div class="v">${(ctx.callsign||"").replace(/\s+/g,"") || info.number || "—"}</div>
-        <div class="k">Departure</div><div class="v">${depTime}</div>
-        <div class="k">Arrival</div><div class="v">${arrTime}</div>
-        <div class="k">DEP Term./Gate</div><div class="v">${info.dep.terminal || "—"} ${info.dep.gate ? ("• Gate " + info.dep.gate) : ""}</div>
-        <div class="k">ARR Term./Gate</div><div class="v">${info.arr.terminal || "—"} ${info.arr.gate ? ("• Gate " + info.arr.gate) : ""}</div>
-      </div>
-      ${imgHtml}
-    `;
-  }
-
-  async function searchFlightNumber(id){
-    const info1 = await fetchAeroFlightByNumber(id);
-    if (info1){ showDetail(info1, { callsign: id }); return true; }
-    showAlert('Bu uçuş numarası için sonuç bulunamadı. Lütfen kontrol et (örn. PGT1713).');
-    return false;
-  }
-
-  async function searchRoute(dep, arr){
-    resultsEl.innerHTML = '<div class="list-group-item">Yükleniyor…</div>';
-    clearAlert();
-    const date = todayIsoDate(0);
-    // Try ICAO then IATA endpoints
-    const attempts = [
-      `/flights/airports/icao/${dep}/${arr}/${date}`,
-      `/flights/airports/iata/${dep}/${arr}/${date}`
-    ];
-    let list = [];
-    for (const path of attempts){
-      const data = await adbFetch(path, { withLeg: 'true' });
-      if (Array.isArray(data)) { list = data; break; }
-      if (Array.isArray(data?.departures)) { list = data.departures; break; }
-      if (Array.isArray(data?.arrivals)) { list = data.arrivals; break; }
-      if (Array.isArray(data?.data)) { list = data.data; break; }
+  if (depAirport && arrAirport) {
+    distanceKm = calculateDistance(depAirport.lat, depAirport.lon, arrAirport.lat, arrAirport.lon);
+    if (geography.latitude && geography.longitude) {
+      const remainingDistanceKm = calculateDistance(geography.latitude, geography.longitude, arrAirport.lat, arrAirport.lon);
+      distanceCoveredKm = distanceKm - remainingDistanceKm;
+      // İlerleme yüzdesini hesapla
+      if (distanceKm > 0) {
+        progressPercentage = Math.max(0, Math.min(100, (distanceCoveredKm / distanceKm) * 100));
+      }
     }
-    const flights = (list || []).slice(0, 50).map(normalizeFlight);
-    if (!flights.length){
-      showAlert('Bu rota için bugün uçuş bulunamadı. Kodları IATA/ICAO olarak kontrol et (örn. AMM-ESB).');
-      resultsEl.innerHTML = '';
-      return;
-    }
-    resultsEl.innerHTML = flights.map((f, idx)=>{
-      const depTime = fmtTimeLocalSafe(f.dep.actual || f.dep.est || f.dep.sched);
-      const arrTime = fmtTimeLocalSafe(f.arr.actual || f.arr.est || f.arr.sched);
-      const num = (f.number || '').toString().replace(/\s+/g,'');
-      return `<button class="list-group-item list-group-item-action" data-idx="${idx}">
-        <div class="d-flex justify-content-between">
-          <div><strong>${num || 'N/A'}</strong> • ${airportCodeLabel(f.dep)} → ${airportCodeLabel(f.arr)}</div>
-          <div>${depTime} → ${arrTime}</div>
+  }
+
+  const formatMinutes = (mins) => {
+    if (mins == null) return "—";
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return `${h}h ${m}m`;
+  };
+
+  const formattedDistanceCovered = distanceCoveredKm != null ? `${toLocale(Math.round(distanceCoveredKm))} km` : "—";
+  const formattedDistanceRemaining = distanceKm != null && distanceCoveredKm != null ? `${toLocale(Math.round(distanceKm - distanceCoveredKm))} km` : "—";
+  
+  const totalFlightTimeMinutes = calculateFlightTime(distanceKm, speed.horizontal);
+  const remainingFlightTimeMinutes = calculateFlightTime(distanceKm - distanceCoveredKm, speed.horizontal);
+  
+  const formattedTotalFlightTime = formatMinutes(totalFlightTimeMinutes);
+  const formattedRemainingFlightTime = formatMinutes(remainingFlightTimeMinutes);
+
+  const depSchedRaw = pick(departure, TIME_KEYS.depSched);
+  const depActRaw   = pick(departure, TIME_KEYS.depAct);
+  const arrSchedRaw = pick(arrival,   TIME_KEYS.arrSched);
+  const arrEstRaw   = pick(arrival,   TIME_KEYS.arrEst);
+
+  const headerHTML = `
+    <div class="flight-route-card">
+      <div class="route-airports">
+        <div class="airport-info">
+          <span class="iata-code">${depCode}</span>
+          <span class="airport-name">${depAirport?.name || '---'}</span>
+          <span class="utc-info">${depTimezoneName}</span>
         </div>
-      </button>`;
-    }).join('');
+        <div class="route-icon">
+          <i class="bi bi-airplane-fill"></i>
+        </div>
+        <div class="airport-info text-end">
+          <span class="iata-code">${arrCode}</span>
+          <span class="airport-name">${arrAirport?.name || '---'}</span>
+          <span class="utc-info">${arrTimezoneName}</span>
+        </div>
+      </div>
+      
+      <div class="flight-progress-container">
+        <div class="progress-line">
+          <div class="plane-icon" style="left: ${progressPercentage}%;">
+            <i class="bi bi-airplane-fill"></i>
+          </div>
+        </div>
+      </div>
 
-    // click handlers
-    resultsEl.querySelectorAll('[data-idx]').forEach(btn=>{
-      btn.addEventListener('click', ()=>{
-        const i = Number(btn.getAttribute('data-idx'));
-        showDetail(flights[i], { callsign: flights[i].number || '' });
-      });
-    });
-    // Show first by default
-    showDetail(flights[0], { callsign: flights[0].number || '' });
+      <div class="route-details">
+        <div>${formattedDistanceCovered}<br><small>${formattedTotalFlightTime}</small></div>
+        <div class="text-end">${formattedDistanceRemaining}<br><small>${formattedRemainingFlightTime}</small></div>
+      </div>
+    </div>
+
+    <div class="drawer-section stat-cards">
+      <div class="stat-card text-center"><div class="k">Altitude</div><div class="v">${altOut}</div></div>
+      <div class="stat-card text-center"><div class="k">Speed</div><div class="v">${spdOut}</div></div>
+      <div class="stat-card text-center"><div class="k">Heading</div><div class="v">${heading}</div></div>
+    </div>
+    <hr class="my-3"/>
+    <div class="drawer-section">
+      <h6 class="text-center mb-3">Schedule</h6>
+      <div class="d-flex justify-content-between text-muted small px-1 mb-2">
+        <div>Departure Scheduled: <strong>${pickTime({v:depSchedRaw}, ["v"])}</strong></div>
+        <div>Actual: <strong class="text-white">${pickTime({v:depActRaw}, ["v"])}</strong></div>
+      </div>
+      <div class="d-flex justify-content-between text-muted small px-1">
+        <div>Arrival Scheduled: <strong>${pickTime({v:arrSchedRaw}, ["v"])}</strong></div>
+        <div>Estimated: <strong class="text-white">${pickTime({v:arrEstRaw}, ["v"])}</strong></div>
+      </div>
+    </div>
+    <hr class="my-3"/>
+  `;
+
+  const equipmentHTML = `
+    <div class="drawer-section">
+      <h6 class="text-center mb-3">Flight Information</h6>
+      <div class="drawer-meta">
+        <div class="k">Airline</div><div class="v">${escapeHTML(airline.name || "—")}</div>
+        <div class="k">Aircraft</div><div class="v">${escapeHTML(aircraft.model || "—")}</div>
+        <div class="k">Registration</div><div class="v">${escapeHTML(aircraft.regNumber || aircraft.registration || "—")}</div>
+      </div>
+    </div>
+  `;
+  
+  drawerBody.innerHTML = headerHTML + equipmentHTML;
+}
+ 
+function escapeHTML(s) {
+  if (s === null || s === undefined) return "";
+  return s.toString().replace(/[&<>"'`]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','`':'&#96;'}[c]));
+}
+
+/* ===== Drawer Opening Logic ===== */
+window.openDrawerForFlight = async function(flightData){
+  openDrawer();
+  drawerTitle.textContent = (flightData?.flight?.iataNumber || flightData?.flight?.icaoNumber || "Flight").toUpperCase();
+  drawerStatus.textContent = (flightData?.status || "Unknown");
+  drawerStatus.className = "badge ms-2 " + statusBadgeClass(flightData?.status);
+  drawerBody.innerHTML = `<div class="drawer-skeleton"><div class="sk-line"></div><div class="sk-line"></div><div class="sk-line"></div><div class="sk-line"></div></div>`;
+
+  try {
+    const depIata = flightData?.departure?.iataCode || null;
+    const arrIata = flightData?.arrival?.iataCode || null;
+    const flightNo = flightData?.flight?.iataNumber || flightData?.flight?.icaoNumber || flightData?.flight?.number || null;
+
+    let enriched = flightData;
+    // Sadece başlangıç ve bitiş havaalanı varsa schedule çekmeyi dene
+    if (depIata && arrIata && flightNo) {
+      try {
+        const sched = await fetchAirportTimes(depIata, arrIata, flightNo);
+        enriched = mergeScheduleIntoFlight(flightData, sched);
+      } catch (e) {
+        console.warn("Schedule enrichment failed:", e);
+      }
+    }
+    renderDrawerContent(enriched);
+  } catch (e) {
+    console.error(e);
+    drawerBody.innerHTML = `<div class="alert alert-danger m-3">Could not retrieve details.</div>`;
   }
+};
 
-  if (!q){
-    return; // no query yet
-  }
-
-  // Flight number pattern (letters+digits)
-  const flightPattern = /^[A-Z]{2,3}\s*\d{1,4}$/i;
-  // Route pattern like AAA-BBB or AAA->BBB
-  const routePattern = /^([A-Z0-9]{3,4})\s*[-–>]{1,2}\s*([A-Z0-9]{3,4})$/i;
-
-  if (flightPattern.test(q)){
-    searchFlightNumber(q.replace(/\s+/g,''));
-    return;
-  }
-  const m = q.match(routePattern);
-  if (m){
-    const dep = m[1].toUpperCase();
-    const arr = m[2].toUpperCase();
-    searchRoute(dep, arr);
-    return;
-  }
-
-  showAlert('Arama biçimi anlaşılmadı. Örnekler: Uçuş no: PGT1713 • Rota: AMM-ESB');
-})();
-
-
-/* ===== Buttons ===== */
-const wxBtn = document.createElement("button");
-wxBtn.textContent = "🌧 Rain Map";
-wxBtn.className = "weather-btn me-2";
-wxBtn.onclick = openWxModal;
-document.querySelector(".navbar .collapse").appendChild(wxBtn);
-
-document.getElementById("fsMapBtn")?.addEventListener("click", openFsMapModal);
+/* ===== Başlat ===== */
+if (document.getElementById("map")) {
+  fetchFlights();
+  setInterval(fetchFlights, REFRESH_MS);
+}

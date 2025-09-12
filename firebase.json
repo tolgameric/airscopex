@@ -1,0 +1,11 @@
+{
+  "hosting": {
+    "site": "airscopex",
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ]
+  }
+}

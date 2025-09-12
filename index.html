@@ -1,58 +1,169 @@
 <!DOCTYPE html>
+
 <html lang="tr">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>AirScopeX — Hava Trafiği</title>
-  <link rel="icon" type="image/png" href="favicon.png" />
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-  <link rel="stylesheet" href="style.css" />
-</head>
-<body class="home-body">
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<title>AirScopeX — Ana Sayfa</title>
+<link href="favicon.png" rel="icon" type="image/png"/>
+<link href="manifest.json" rel="manifest"/>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"/>
+<link href="style.css" rel="stylesheet">
+<!-- Hover ile açılan dropdown (sadece desktop) -->
+<style>
+    @media (hover: hover) and (pointer: fine) {
+      .dropdown-hover:hover > .dropdown-menu {
+        display: block;
+        margin-top: 0;
+      }
+      .dropdown-hover > .nav-link:focus { outline: none; }
+    }
+  </style>
+</link><link href="mobile.css" rel="stylesheet"/></head>
+<body class="homev2">
+<!-- NAVBAR -->
+<nav class="navbar navbar-expand-lg navbar-dark site-header">
+<div class="container-fluid">
+<a class="navbar-brand d-flex align-items-center gap-2" href="index.html">
+<i class="bi bi-airplane-fill"></i><span>AirScopeX</span>
+</a>
+<button class="navbar-toggler" data-bs-target="#mainNav" data-bs-toggle="collapse" type="button">
+<span class="navbar-toggler-icon"></span>
+</button>
+<div class="collapse navbar-collapse justify-content-end" id="mainNav">
+<ul class="navbar-nav">
+<li class="nav-item">
+<a aria-current="page" class="nav-link px-3 py-2 active" href="index.html">Ana Sayfa</a>
+</li>
+<!-- ESKİ tek "Harita" linkini dropdown ile değiştirdim -->
+<li class="nav-item dropdown dropdown-hover">
+<a aria-expanded="false" class="nav-link px-3 py-2 dropdown-toggle" data-bs-toggle="dropdown" href="#" id="mapsMenu" role="button">
+              Haritalar
+            </a>
+<ul aria-labelledby="mapsMenu" class="dropdown-menu dropdown-menu-end">
+<li><a class="dropdown-item" href="map.html">Uçuş Takip Haritası</a></li>
+<li><a class="dropdown-item" href="rain.html">Yağmur Haritası</a></li>
+</ul>
+</li>
+<li class="nav-item">
+<a class="nav-link px-3 py-2" href="about.html">Hakkında</a>
+</li>
+</ul>
+</div>
+</div>
+</nav>
+<!-- HERO: tam ekran -->
+<header class="hv2-hero">
+<!-- hero görseli: home-hero.jpg (koymazsan alttaki gradient görünür) -->
+<div class="hv2-hero-bg" style="background-image:url('wallpaper.jfif');"></div>
+<div class="hv2-hero-overlay"></div>
+<div class="container hv2-hero-content text-center">
+<h1 class="hv2-title">Gökyüzünü Keşfet</h1>
+<p class="hv2-sub">Anlık uçuş verileriyle akıcı takip</p>
+<div class="row g-3 justify-content-center hv2-cards">
+<div class="col-12 col-sm-6 col-lg-3">
+<a class="hv2-card" href="map.html">
+<i class="bi bi-compass"></i>
+<strong>Harita</strong>
+</a>
+</div>
+<div class="col-12 col-sm-6 col-lg-3">
+<a class="hv2-card" href="#">
+<i class="bi bi-grid-3x3-gap"></i>
+<strong>Keşfet</strong>
+</a>
+</div>
+<div class="col-12 col-sm-6 col-lg-3">
+<a class="hv2-card" href="about.html">
+<i class="bi bi-info-circle"></i>
+<strong>Hakkında</strong>
+</a>
+</div>
+</div>
+<!-- aşağı / yukarı toggle butonu -->
+<button aria-label="Kaydır" class="hv2-toggle" id="hv2-toggle">
+<i class="bi bi-arrow-down"></i>
+</button>
+</div>
+</header>
+<!-- ANA İÇERİK -->
+<main class="container hv2-main py-5" id="content">
+<section class="mb-5">
+<h2 class="hv2-sec-title">Hizmetlerimiz</h2>
+<div class="row g-4 mt-2">
+<div class="col-lg-6">
+<div class="hv2-panel p-3 d-flex align-items-start gap-3">
+<img alt="" class="hv2-thumb" src="index-hero.png"/>
+<div>
+<h3 class="h5 mb-2">Teknoloji Haritası</h3>
+<ul class="hv2-list">
+<li>Gerçek zamanlı trafik akışı</li>
+<li>Gecikme raporları</li>
+<li>İstatistik ve görselleştirme</li>
+<li>Mobil uyumluluk</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="col-lg-6">
+<h3 class="h5 mb-3">Neden Bizi Seçmelisin?</h3>
+<div class="row g-3">
+<div class="col-sm-6">
+<div class="hv2-feature"><i class="bi bi-shield-check"></i> Doğruluk</div>
+</div>
+<div class="col-sm-6">
+<div class="hv2-feature"><i class="bi bi-activity"></i> Akıcılık</div>
+</div>
+<div class="col-sm-6">
+<div class="hv2-feature"><i class="bi bi-phone"></i> Mobil Uyum</div>
+</div>
+<div class="col-sm-6">
+<div class="hv2-feature"><i class="bi bi-sliders"></i> Esnek Filtreler</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<footer class="hv2-footer d-flex flex-wrap gap-3 align-items-center justify-content-between pt-4 mt-2">
+<div class="hv2-social d-flex gap-3">
+<a href="https://www.linkedin.com/in/tolga-meric/" rel="noreferrer" target="_blank"><i class="bi bi-linkedin"></i></a>
+<a href="mailto:tolgamrc14@gmail.com"><i class="bi bi-envelope"></i></a>
+</div>
+<div class="text-muted small">© 2025 AirScopeX • Tüm hakları saklıdır.</div>
+</footer>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    // Header yüksekliği -> CSS değişkeni
+    document.addEventListener('DOMContentLoaded', () => {
+      const hdr = document.querySelector('.site-header');
+      const setHdr = () => document.documentElement.style.setProperty('--hdr-h', (hdr?.offsetHeight || 56) + 'px');
+      setHdr(); window.addEventListener('resize', setHdr);
 
-  <!-- NAVBAR -->
-  <nav class="navbar navbar-expand-lg navbar-dark site-header">
-    <div class="container-fluid">
-      <a class="navbar-brand fw-bold d-flex align-items-center gap-2" href="index.html">
-        <img src="logo.png" alt="AirScopeX Logo" class="brand-logo"/>
-        AirScopeX
-      </a>
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav">
-        <span class="navbar-toggler-icon"></span>
-      </button>
-      <div id="nav" class="collapse navbar-collapse">
-        <ul class="navbar-nav ms-auto me-2">
-          <li class="nav-item"><a class="nav-link active" href="index.html"><i class="bi bi-house"></i> Ana Sayfa</a></li>
-          <li class="nav-item"><a class="nav-link" href="map.html"><i class="bi bi-compass"></i> Harita</a></li>
-          <li class="nav-item"><a class="nav-link" href="about.html"><i class="bi bi-info-circle"></i> Hakkında</a></li>
-        </ul>
-      </div>
-    </div>
-  </nav>
+      const toggleBtn = document.getElementById('hv2-toggle');
+      const contentEl = document.getElementById('content');
+      const heroEl = document.querySelector('.hv2-hero');
 
-  <!-- HERO -->
-  <section class="hero-bg">
-    <div class="hero-overlay"></div>
-    <img class="hero-image" src="wallpaper.jfif" alt="Airplane" />
-    <div class="hero-content">
-      <h1 class="display-5 fw-bold mb-3">Gökyüzünü keşfet</h1>
-      <p class="lead mb-4">Gerçek zamanlı uçuşları AirScopeX ile takip et.</p>
-      <form class="hero-search" action="map.html" method="get">
-        <div class="input-group input-group-lg hero-search-group">
-          <input type="text" class="form-control" name="q" placeholder="Uçuş no, ICAO24 veya rota ara…" aria-label="Ara">
-          <button class="btn btn-accent" type="submit"><i class="bi bi-search"></i> Ara</button>
-        </div>
-        <small class="text-light-50 d-block mt-2">Arama sonuçları harita sayfasında açılacaktır.</small>
-      </form>
-    </div>
-  </section>
+      // Aşağı/yukarı geçişi
+      const goDown = () => contentEl?.scrollIntoView({behavior:'smooth'});
+      const goUp   = () => window.scrollTo({top:0, behavior:'smooth'});
 
-  <footer class="site-footer text-center">
-    <div class="runway-lines"></div>
-    <div class="small footer-credit">© 2025 AirScopeX • <strong>Tolga Meriç</strong></div>
-  </footer>
+      let atTop = true;
+      toggleBtn.addEventListener('click', () => atTop ? goDown() : goUp());
 
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-</body>
+      // Scroll durumuna göre ikon değiştir
+      const onScroll = () => {
+        const heroBottom = heroEl.getBoundingClientRect().bottom;
+        if (heroBottom <= (hdr?.offsetHeight || 56) + 10) {
+          if (atTop) { toggleBtn.innerHTML = '<i class="bi bi-arrow-up"></i>'; atTop = false; }
+        } else {
+          if (!atTop) { toggleBtn.innerHTML = '<i class="bi bi-arrow-down"></i>'; atTop = true; }
+        }
+      };
+      window.addEventListener('scroll', onScroll, {passive:true});
+      onScroll();
+    });
+  </script>
+<script src="mobile.js"></script></body>
 </html>

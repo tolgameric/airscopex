@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+
+<html lang="tr">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<title>AirScopeX — Yağmur Haritası</title>
+<link href="favicon.png" rel="icon" type="image/png"/>
+<link href="manifest.json" rel="manifest"/>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"/>
+<link href="style.css" rel="stylesheet">
+<style>
+    /* Header altına tam ekran iFrame */
+    :root { --hdr-h: 56px; } /* header.js yoksa fallback */
+    html, body { height: 100%; }
+    body { background: var(--bg, #0a1222); }
+    .rv-wrap {
+      position: fixed;
+      top: var(--hdr-h, 56px);
+      left: 0; right: 0;
+      bottom: 32px; /* credit alanı */
+    }
+    .rv-iframe {
+      width: 100%;
+      height: 100%;
+      border: 0;
+    }
+    .rv-credit {
+      position: fixed;
+      left: 0; right: 0; bottom: 0;
+      height: 32px;
+      display: flex; align-items: center; justify-content: center;
+      gap: .5rem;
+      font-size: 12px;
+      color: var(--muted, #93a5bd);
+      background: rgba(0,0,0,.25);
+      backdrop-filter: blur(4px);
+      border-top: 1px solid var(--stroke, #22324a);
+    }
+    .rv-credit a { color: inherit; text-decoration: underline; }
+  </style>
+</link><link href="mobile.css" rel="stylesheet"/></head>
+<body>
+<!-- Senin ortak navbarın -->
+<nav class="navbar navbar-expand-lg navbar-dark site-header">
+<div class="container-fluid">
+<a class="navbar-brand d-flex align-items-center gap-2" href="index.html">
+<i class="bi bi-airplane-fill"></i><span>AirScopeX</span>
+</a>
+<button class="navbar-toggler" data-bs-target="#mainNav" data-bs-toggle="collapse" type="button">
+<span class="navbar-toggler-icon"></span>
+</button>
+<div class="collapse navbar-collapse justify-content-end" id="mainNav">
+<ul class="navbar-nav">
+<li class="nav-item"><a class="nav-link px-3 py-2" href="index.html">Ana Sayfa</a></li>
+<li class="nav-item dropdown dropdown-hover">
+<a aria-expanded="false" class="nav-link px-3 py-2 dropdown-toggle active" data-bs-toggle="dropdown" href="#" id="mapsMenu" role="button">
+              Haritalar
+            </a>
+<ul aria-labelledby="mapsMenu" class="dropdown-menu dropdown-menu-end">
+<li><a class="dropdown-item" href="map.html">Uçuş Takip Haritası</a></li>
+<li><a class="dropdown-item active" href="rain.html">Yağmur Haritası</a></li>
+</ul>
+</li>
+<li class="nav-item"><a class="nav-link px-3 py-2" href="about.html">Hakkında</a></li>
+</ul>
+</div>
+</div>
+</nav>
+<!-- RainViewer iFrame -->
+<div class="rv-wrap">
+<iframe allowfullscreen="" class="rv-iframe" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="https://www.rainviewer.com/map.html?loc=39.0000,35.0000,6&amp;oFa=0&amp;oC=0&amp;oU=0&amp;oCS=1&amp;oF=0&amp;oAP=0&amp;c=1&amp;o=83&amp;lm=1&amp;layer=radar&amp;sm=1&amp;sn=1" title="RainViewer Yağmur Haritası">
+</iframe>
+</div>
+<!-- Attribution (RainViewer şart koşuyor: kaynak link ver) -->
+<div class="rv-credit">
+    Veriler <a href="https://www.rainviewer.com/" rel="noreferrer" target="_blank">RainViewer</a> tarafından sağlanır.
+  </div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    // Header yüksekliğini CSS değişkenine yaz (senin index’teki mantığınla aynı)
+    const hdr = document.querySelector('.site-header');
+    const setHdr = () => document.documentElement.style.setProperty('--hdr-h', (hdr?.offsetHeight || 56) + 'px');
+    setHdr(); addEventListener('resize', setHdr, {passive:true});
+  </script>
+<script src="mobile.js"></script></body>
+</html>

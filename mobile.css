@@ -1,0 +1,157 @@
+
+/* AirScopeX Mobile Overrides (drop-in) */
+/* Place after style.css. Keeps desktop look intact; only overrides at small widths. */
+
+/* 1) Base tweaks */
+:root{
+  --tap: 12px; /* minimum hit area padding */
+}
+
+html{scroll-behavior:smooth;}
+img,svg,canvas,video{max-width:100%;height:auto;}
+
+/* Improve tap targets on mobile */
+@media (hover:none) and (pointer:coarse){
+  a, button, .btn, .nav-link, .dropdown-item, .list-group-item{
+    padding-top: max(0.5rem, var(--tap));
+    padding-bottom: max(0.5rem, var(--tap));
+  }
+}
+
+/* 2) Header / Navbar */
+@media (max-width: 576px){
+  .site-header{
+    position: sticky; top:0; z-index: 1040;
+    backdrop-filter: saturate(120%) blur(8px);
+  }
+  .brand-logo{ width: 28px; height: 28px; }
+  .navbar-brand{ font-size: 1rem; }
+  .navbar .form-control{ font-size: .95rem; }
+  .navbar .btn{ padding:.45rem .7rem; }
+}
+
+/* 3) Layout wrappers */
+:root{ --safe-bottom: env(safe-area-inset-bottom, 0px); }
+
+/* Map should fill viewport minus header on mobile */
+@media (max-width: 768px){
+  #map, .map-wrap, .map-container{
+    position: relative;
+    height: calc(100dvh - var(--hdr-h,56px));
+    min-height: 420px;
+    inset: 0;
+  }
+  body.homev2{
+    overflow-x: hidden;
+  }
+}
+
+/* 4) Drawer: turn into bottom sheet on mobile */
+.drawer, .drawer-panel, #drawer{
+  will-change: transform,height;
+}
+
+@media (max-width: 768px){
+  .drawer, .drawer-panel, #drawer{
+    position: fixed !important;
+    left: 0; right: 0;
+    bottom: 0;
+    top: auto;
+    max-height: min(86dvh, 720px);
+    height: auto;
+    transform: translateY(100%);
+    transition: transform .28s ease;
+    border-top-left-radius: 16px !important;
+    border-top-right-radius: 16px !important;
+    border-left: none !important;
+    border-right: none !important;
+    box-shadow: 0 -10px 30px rgba(0,0,0,.35);
+    background: var(--panel, rgba(18,26,44,.96));
+    z-index: 1050;
+  }
+  .drawer.is-open, #drawer.is-open{ transform: translateY(0); }
+  .drawer-header{
+    position: sticky; top:0; z-index:2;
+    background: inherit;
+    padding-top: .5rem;
+  }
+  .drawer .drag-handle{
+    display:block;
+    width: 48px; height: 4px;
+    border-radius: 4px;
+    background: var(--stroke,#22324a);
+    margin: 6px auto 8px;
+    opacity:.7;
+  }
+  .drawer-body{
+    overflow:auto;
+    max-height: calc(86dvh - 56px - var(--safe-bottom));
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* 5) Filters to right on desktop; stack on mobile */
+@media (max-width: 768px){
+  .filter-panel, #filters, .filters-wrap{
+    position: sticky; top: 0;
+    z-index: 1035;
+    padding: .5rem .75rem;
+    margin: 0;
+    background: var(--panel,rgba(18,26,44,.96));
+    border-bottom: 1px solid var(--stroke,#22324a);
+  }
+  .filters-grid{
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: .5rem;
+  }
+  .filters-grid .btn,
+  .filters-grid .form-control,
+  .filters-grid .form-select{ width: 100%; }
+}
+
+/* 6) Typography scale */
+@media (max-width: 576px){
+  h1{ font-size: 1.30rem; }
+  h2{ font-size: 1.15rem; }
+  h3{ font-size: 1.05rem; }
+  .lead{ font-size: 1rem; }
+  .display-1,.display-2,.display-3,.display-4{ font-size: 1.6rem; }
+}
+
+/* 7) Tables: enable horizontal scroll */
+.table-responsive{ overflow-x:auto; }
+@media (max-width: 768px){
+  table{ font-size:.92rem; }
+  .table th, .table td{ white-space: nowrap; }
+}
+
+/* 8) Cards / panels spacing */
+@media (max-width:576px){
+  .card{ border-radius: 14px; }
+  .card-body{ padding: .9rem; }
+  .list-group-item{ padding: .7rem .9rem; }
+}
+
+/* 9) Forms */
+@media (max-width:576px){
+  .form-control, .form-select{ font-size: 16px; } /* avoid iOS zoom */
+  .input-group > .btn{ font-size: 16px; }
+}
+
+/* 10) Buttons: full-width where appropriate */
+@media (max-width:576px){
+  .btn.wide, .btn-block, .btn-full{ width:100%; }
+}
+
+/* 11) Utilities for color contrast issues (light/dark modes) */
+.text-muted{ color: var(--muted,#93a5bd) !important; }
+.muted{ color: var(--muted,#93a5bd) !important; }
+
+/* 12) Fix Bootstrap offcanvas z-index if used with drawer */
+.offcanvas{ z-index: 1060; }
+
+/* 13) Footer safe area */
+@media (max-width:768px){
+  footer{ padding-bottom: max(12px, var(--safe-bottom)); }
+}

@@ -1,0 +1,423 @@
+/* drawer.css — Flight Drawer Styling */
+
+:root {
+  --drawer-bg: #222;
+  --drawer-border-color: #333;
+  --drawer-text-color: #eee;
+  --drawer-backdrop-color: rgba(0, 0, 0, 0.6);
+  --accent-color: #0d6efd; /* Bootstrap primary color for emphasis */
+}
+
+body.light-mode {
+  --drawer-bg: #f8f9fa;
+  --drawer-border-color: #ccc;
+  --drawer-text-color: #333;
+  --drawer-backdrop-color: rgba(0, 0, 0, 0.4);
+}
+
+.drawer-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: var(--drawer-backdrop-color);
+  z-index: 2000; /* Must be below drawer, above map */
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.drawer-backdrop.is-open {
+  opacity: 1;
+  visibility: visible;
+}
+
+.flight-drawer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  max-width: 500px; /* Max width for desktop */
+  height: auto;
+  max-height: 90%; /* Max height on mobile, allows scroll */
+  background-color: var(--drawer-bg);
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
+  box-shadow: 0 -5px 15px rgba(0, 0, 0, 0.3);
+  transform: translateY(100%); /* Initially hidden */
+  transition: transform 0.3s ease-out;
+  z-index: 2001; /* Above backdrop */
+  display: flex;
+  flex-direction: column;
+  color: var(--drawer-text-color);
+  border: 1px solid var(--drawer-border-color);
+  overflow: hidden; /* For rounded corners */
+}
+
+.flight-drawer.is-open {
+  transform: translateY(0); /* Slide up */
+}
+
+/* Desktop positioning for drawer */
+@media (min-width: 768px) {
+  .flight-drawer {
+    left: 50%; /* Center horizontally */
+    transform: translate(-50%, 100%); /* Center and hide */
+    /* Adjust max-height for desktop if needed */
+  }
+  .flight-drawer.is-open {
+    transform: translate(-50%, 0); /* Center and show */
+  }
+}
+
+.drawer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  background-color: var(--drawer-bg);
+  border-bottom: 1px solid var(--drawer-border-color);
+  cursor: grab; /* Indicates it can be dragged on mobile */
+  touch-action: none; /* Prevents default browser scroll on touch */
+}
+.drawer-header .d-flex {
+  align-items: center;
+  gap: 10px;
+}
+.drawer-header .badge {
+  font-size: 0.75em;
+  padding: 0.3em 0.6em;
+}
+
+.drawer-body {
+  flex-grow: 1;
+  padding: 20px;
+  overflow-y: auto; /* Enable scrolling for content */
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+}
+
+.drawer-section {
+  margin-bottom: 20px;
+}
+.drawer-section:last-child {
+  margin-bottom: 0;
+}
+
+/* Skeleton loader for drawer body */
+.drawer-skeleton {
+  padding: 20px;
+}
+.drawer-skeleton .sk-line {
+  background-color: rgba(255, 255, 255, 0.1);
+  height: 1.2em;
+  margin-bottom: 0.8em;
+  border-radius: 4px;
+  animation: pulse 1.5s infinite ease-in-out;
+}
+.drawer-skeleton .sk-line:nth-child(1) { width: 80%; }
+.drawer-skeleton .sk-line:nth-child(2) { width: 90%; }
+.drawer-skeleton .sk-line:nth-child(3) { width: 70%; }
+.drawer-skeleton .sk-line:nth-child(4) { width: 85%; }
+
+@keyframes pulse {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
+}
+
+/* Image-specific styles */
+
+.world-map-bg {
+  background: linear-gradient(to right, #007bff, #00c6ff); /* Example gradient */
+  border-radius: 10px;
+  padding: 30px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  margin-bottom: 25px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: inset 0 0 10px rgba(0,0,0,0.2);
+}
+
+.world-map-bg::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: url('data:image/svg+xml;utf8,<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><circle cx="100" cy="100" r="90" fill="rgba(255,255,255,0.05)"/></svg>'); /* Subtle background pattern */
+  background-size: 200px 200px;
+  opacity: 0.3;
+}
+
+.route-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.2em;
+  font-weight: bold;
+  position: relative;
+  z-index: 1; /* Above pseudo-element */
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+}
+
+.route-line .code {
+  background-color: rgba(255, 255, 255, 0.2);
+  padding: 5px 10px;
+  border-radius: 5px;
+  font-size: 0.9em;
+}
+
+.route-line .bi-airplane-fill {
+  color: white;
+  font-size: 1.5em;
+  transform: rotate(45deg); /* Pointing right-ish */
+}
+
+.stat-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.stat-card {
+  background-color: rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 10px;
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.stat-card .k {
+  font-size: 0.8em;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 3px;
+}
+.stat-card .v {
+  font-weight: bold;
+  font-size: 1em;
+  color: var(--drawer-text-color);
+}
+
+.drawer-meta {
+  display: grid;
+  grid-template-columns: 1fr 2fr; /* Key-value pair layout */
+  gap: 8px 15px;
+  font-size: 0.9em;
+}
+.drawer-meta .k {
+  color: rgba(255, 255, 255, 0.6);
+}
+.drawer-meta .v {
+  font-weight: bold;
+  text-align: right;
+}
+
+/* Timeline style for schedule */
+.schedule-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  position: relative;
+  padding-left: 20px;
+}
+.schedule-timeline::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.timeline-event {
+  position: relative;
+  padding-left: 20px;
+}
+.timeline-event::before {
+  content: '';
+  position: absolute;
+  left: -5px;
+  top: 5px;
+  width: 12px;
+  height: 12px;
+  background-color: var(--accent-color);
+  border-radius: 50%;
+  border: 2px solid var(--drawer-bg);
+  box-shadow: 0 0 0 2px var(--accent-color);
+}
+.timeline-event.event-dep::before { background-color: #28a745; box-shadow: 0 0 0 2px #28a745; } /* Green for departure */
+.timeline-event.event-arr::before { background-color: #17a2b8; box-shadow: 0 0 0 2px #17a2b8; } /* Info blue for arrival */
+
+.timeline-event .title {
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+.timeline-event .details {
+  font-size: 0.85em;
+  color: rgba(255, 255, 255, 0.7);
+}
+.timeline-event .details strong {
+  color: var(--drawer-text-color);
+}
+
+/* Media query for smaller screens / mobile */
+@media (max-width: 767.98px) {
+  .site-header {
+    background-color: var(--drawer-bg); /* Match drawer bg */
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  }
+  .map-container {
+    padding-top: var(--navbar-height); /* Adjust for fixed navbar */
+  }
+  #sidebar {
+    position: fixed;
+    top: var(--navbar-height);
+    left: 0;
+    width: 100%;
+    height: calc(100% - var(--navbar-height));
+    z-index: 1000; /* Above map, below drawer */
+    transform: translateX(-100%);
+    transition: transform 0.3s ease-in-out;
+    background-color: var(--drawer-bg);
+    overflow-y: auto;
+  }
+  #sidebar.is-open {
+    transform: translateX(0);
+  }
+  .flight-drawer {
+    border-radius: 0; /* No rounded corners on full-width mobile */
+  }
+  .drawer-header {
+    /* Add a subtle grab indicator */
+    border-bottom: 1px solid var(--drawer-border-color);
+    position: sticky;
+    top: 0;
+    background-color: var(--drawer-bg);
+    z-index: 10;
+  }
+  .drawer-header::before {
+    content: '';
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 40px;
+    height: 4px;
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+  }
+  .drawer-body {
+    padding-top: 10px;
+  }
+}
+/* drawer.css dosyasının en altına ekleyin */
+
+.flight-route-card {
+  background-color: #2c2c2e; /* Koyu gri arka plan */
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 20px;
+  border: 1px solid #444;
+}
+
+.route-airports {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.airport-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.airport-info .iata-code {
+  font-size: 2em;
+  font-weight: bold;
+  line-height: 1;
+}
+
+.airport-info .airport-name {
+  font-size: 0.85em;
+  color: #aaa;
+  line-height: 1.2;
+}
+
+.airport-info .utc-info {
+  font-size: 0.75em;
+  color: #888;
+}
+
+.route-icon {
+  color: #888;
+}
+
+.flight-progress-container {
+  padding: 10px 0;
+}
+
+/* drawer.css içindeki mevcut progress-line ve plane-icon sınıflarını bununla DEĞİŞTİRİN */
+
+.progress-line {
+  position: relative;
+  width: 100%;
+  height: 4px; /* Çizgiyi biraz daha kalın yaptık */
+  background-color: #555; /* Kalan yol için varsayılan gri */
+  border-radius: 2px;
+  overflow: hidden; /* İlerleme çubuğunun kenarlarını yuvarlamak için */
+}
+
+/* Geçilen yolun rengi (yeşil) */
+.progress-line::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: var(--progress-width, 0%); /* app.js'ten dinamik genişlik alacak */
+  background-color: #28a745; /* Yeşil */
+  border-radius: 2px;
+  transition: width 0.5s ease-out;
+}
+
+
+.plane-icon {
+  position: absolute;
+  top: 50%;
+  /* transform: translate(-50%, -50%); - Bu satırı kaldırıyoruz */
+  transform: translate(-50%, -50%) rotate(90deg); /* Uçağı doğuya (sağa) çevirdik */
+  color: #fff;
+  font-size: 1.2em;
+  transition: left 0.5s ease-out; /* Yumuşak hareket için */
+  z-index: 1; /* Uçağın ilerleme çubuğunun üzerinde kalmasını sağlar */
+}
+
+
+.route-details {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8em;
+  color: #ccc;
+  padding-top: 12px;
+}
+
+.route-details small {
+  color: #888;
+}
+/* drawer.css içindeki herhangi bir boş yere ekleyebilirsiniz */
+
+.flight-progress-container {
+  padding: 10px 0;
+  position: relative; /* progress-line'daki relative konumlama için */
+  margin: 15px 0; /* Üstten ve alttan boşluk verelim */
+}
